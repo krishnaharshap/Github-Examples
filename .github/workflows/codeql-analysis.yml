@@ -1,76 +1,51 @@
-name: "CodeQL Advanced Analysis"
+name: "CodeQL Analysis"
 
 on:
   push:
-    branches: [ "main", "master" ]       # Trigger analysis on push to main branches
+    branches: [ "main" ]
   pull_request:
-    branches: [ "main", "master" ]       # Also run on PRs targeting these branches
+    branches: [ "main" ]
   schedule:
-    - cron: "0 2 * * 1"                   # Optional: run a scheduled scan every Monday at 2 AM UTC
+    - cron: "0 2 * * 1"   # Weekly Monday scan
 
 permissions:
   contents: read
   security-events: write
-  actions: read
 
 jobs:
   analyze:
-    name: "CodeQL Analyze"
+    name: Analyze Code with CodeQL
     runs-on: ubuntu-latest
     permissions:
-      security-events: write
       contents: read
-      actions: read
+      security-events: write
 
     strategy:
-      fail-fast: false
       matrix:
-        language: [ 'javascript', 'python', 'java' ]   # Add or remove languages based on your repo
+        language: [ 'javascript' ]   # ✅ Only scan JavaScript (or 'typescript' if used)
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # (Optional) Setup environment, dependencies, or build tools here
       - name: Setup Node.js
-        if: matrix.language == 'javascript'
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Setup Python
-        if: matrix.language == 'python'
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Setup Java
-        if: matrix.language == 'java'
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-
-      # (Optional) Install project dependencies
-      - name: Install dependencies
-        if: matrix.language == 'javascript'
+      - name: Install dependencies (if package.json exists)
+        if: hashFiles('**/package.json') != ''
         run: npm ci
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
           languages: ${{ matrix.language }}
-          queries: +security-and-quality  # Runs both security and quality query suites
+          queries: +security-and-quality
 
+      # For JS/TS projects, autobuild is usually enough
       - name: Autobuild
         uses: github/codeql-action/autobuild@v3
 
-      # (Optional) Manual build step (if autobuild fails)
-      # - name: Build manually
-      #   run: |
-      #     mvn clean install -DskipTests=true
-
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3
-        with:
-          category: "/language:${{ matrix.language }}"
